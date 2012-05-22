@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.croquis.list;
 
 import android.content.Context;
@@ -39,120 +55,323 @@ import android.widget.Scroller;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Base class that can be used to implement virtualized lists of items. A list does
+ * not have a spatial definition here. For instance, subclases of this class can
+ * display the content of the list in a grid, in a carousel, as stack, etc.
+ *
+ * @attr ref android.R.styleable#AbsListView_listSelector
+ * @attr ref android.R.styleable#AbsListView_drawSelectorOnTop
+ * @attr ref android.R.styleable#AbsListView_stackFromBottom
+ * @attr ref android.R.styleable#AbsListView_scrollingCache
+ * @attr ref android.R.styleable#AbsListView_textFilterEnabled
+ * @attr ref android.R.styleable#AbsListView_transcriptMode
+ * @attr ref android.R.styleable#AbsListView_cacheColorHint
+ * @attr ref android.R.styleable#AbsListView_fastScrollEnabled
+ * @attr ref android.R.styleable#AbsListView_smoothScrollbar
+ */
 public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter> implements TextWatcher,
         ViewTreeObserver.OnGlobalLayoutListener, Filter.FilterListener,
         ViewTreeObserver.OnTouchModeChangeListener {
 
+    /**
+     * Disables the transcript mode.
+     *
+     * @see #setTranscriptMode(int)
+     */
     public static final int TRANSCRIPT_MODE_DISABLED = 0;
+    /**
+     * The list will automatically scroll to the bottom when a data set change
+     * notification is received and only if the last item is already visible
+     * on screen.
+     *
+     * @see #setTranscriptMode(int)
+     */
     public static final int TRANSCRIPT_MODE_NORMAL = 1;
+    /**
+     * The list will automatically scroll to the bottom, no matter what items
+     * are currently visible.
+     *
+     * @see #setTranscriptMode(int)
+     */
     public static final int TRANSCRIPT_MODE_ALWAYS_SCROLL = 2;
 
+    /**
+     * Indicates that we are not in the middle of a touch gesture
+     */
     static final int TOUCH_MODE_REST = -1;
 
+    /**
+     * Indicates we just received the touch event and we are waiting to see if the it is a tap or a
+     * scroll gesture.
+     */
     static final int TOUCH_MODE_DOWN = 0;
 
+    /**
+     * Indicates the touch has been recognized as a tap and we are now waiting to see if the touch
+     * is a longpress
+     */
     static final int TOUCH_MODE_TAP = 1;
 
+    /**
+     * Indicates we have waited for everything we can wait for, but the user's finger is still down
+     */
     static final int TOUCH_MODE_DONE_WAITING = 2;
 
+    /**
+     * Indicates the touch gesture is a scroll
+     */
     static final int TOUCH_MODE_SCROLL = 3;
     
+    /**
+     * Indicates the view is in the process of being flung
+     */
     static final int TOUCH_MODE_FLING = 4;
 
+    /**
+     * Regular layout - usually an unsolicited layout from the view system
+     */
     static final int LAYOUT_NORMAL = 0;
 
+    /**
+     * Show the first item
+     */
     static final int LAYOUT_FORCE_TOP = 1;
 
+    /**
+     * Force the selected item to be on somewhere on the screen
+     */
     static final int LAYOUT_SET_SELECTION = 2;
 
+    /**
+     * Show the last item
+     */
     static final int LAYOUT_FORCE_BOTTOM = 3;
 
+    /**
+     * Make a mSelectedItem appear in a specific location and build the rest of
+     * the views from there. The top is specified by mSpecificTop.
+     */
     static final int LAYOUT_SPECIFIC = 4;
 
+    /**
+     * Layout to sync as a result of a data change. Restore mSyncPosition to have its top
+     * at mSpecificTop
+     */
     static final int LAYOUT_SYNC = 5;
 
+    /**
+     * Layout as a result of using the navigation keys
+     */
     static final int LAYOUT_MOVE_SELECTION = 6;
 
+    /**
+     * Controls how the next layout will happen
+     */
     int mLayoutMode = LAYOUT_NORMAL;
 
+    /**
+     * Should be used by subclasses to listen to changes in the dataset
+     */
     AdapterDataSetObserver mDataSetObserver;
 
+    /**
+     * The adapter containing the data to be displayed by this view
+     */
     ListAdapter mAdapter;
 
+    /**
+     * Indicates whether the list selector should be drawn on top of the children or behind
+     */
     boolean mDrawSelectorOnTop = false;
 
+    /**
+     * The drawable used to draw the selector
+     */
     Drawable mSelector;
 
+    /**
+     * Defines the selector's location and dimension at drawing time
+     */
     Rect mSelectorRect = new Rect();
 
+    /**
+     * The data set used to store unused views that should be reused during the next layout
+     * to avoid creating new ones
+     */
     final RecycleBin mRecycler = new RecycleBin();
 
+    /**
+     * The selection's left padding
+     */
     int mSelectionLeftPadding = 0;
 
+    /**
+     * The selection's top padding
+     */
     int mSelectionTopPadding = 0;
 
+    /**
+     * The selection's right padding
+     */
     int mSelectionRightPadding = 0;
 
+    /**
+     * The selection's bottom padding
+     */
     int mSelectionBottomPadding = 0;
 
+    /**
+     * This view's padding
+     */
     Rect mListPadding = new Rect();
 
+    /**
+     * Subclasses must retain their measure spec from onMeasure() into this member
+     */
     int mWidthMeasureSpec = 0;
 
+    /**
+     * The top scroll indicator
+     */
     View mScrollUp;
 
+    /**
+     * The down scroll indicator
+     */
     View mScrollDown;
 
+    /**
+     * When the view is scrolling, this flag is set to true to indicate subclasses that
+     * the drawing cache was enabled on the children
+     */
     boolean mCachingStarted;
 
+    /**
+     * The position of the view that received the down motion event
+     */
     int mMotionPosition;
 
+    /**
+     * The offset to the top of the mMotionPosition view when the down motion event was received
+     */
     int mMotionViewOriginalTop;
 
+    /**
+     * The desired offset to the top of the mMotionPosition view after a scroll
+     */
     int mMotionViewNewTop;
 
+    /**
+     * The X value associated with the the down motion event
+     */
     int mMotionX;
 
+    /**
+     * The Y value associated with the the down motion event
+     */
     int mMotionY;
 
+    /**
+     * One of TOUCH_MODE_REST, TOUCH_MODE_DOWN, TOUCH_MODE_TAP, TOUCH_MODE_SCROLL, or
+     * TOUCH_MODE_DONE_WAITING
+     */
     int mTouchMode = TOUCH_MODE_REST;
 
+    /**
+     * Y value from on the previous motion event (if any)
+     */
     int mLastY;
 
+    /**
+     * How far the finger moved before we started scrolling
+     */
     int mMotionCorrection;
 
+    /**
+     * Determines speed during touch scrolling
+     */
     private VelocityTracker mVelocityTracker;
 
+    /**
+     * Handles one frame of a fling
+     */
     private FlingRunnable mFlingRunnable;
-
+    
+    /**
+     * Handles scrolling between positions within the list.
+     */
     private PositionScroller mPositionScroller;
 
+    /**
+     * The offset in pixels form the top of the AdapterView to the top
+     * of the currently selected view. Used to save and restore state.
+     */
     int mSelectedTop = 0;
 
+    /**
+     * Indicates whether the list is stacked from the bottom edge or
+     * the top edge.
+     */
     boolean mStackFromBottom;
 
+    /**
+     * When set to true, the list automatically discards the children's
+     * bitmap cache after scrolling.
+     */
     boolean mScrollingCacheEnabled;
 
-    //boolean mFastScrollEnabled;
+    /**
+     * Whether or not to enable the fast scroll feature on this list
+     */
+    //!boolean mFastScrollEnabled;
 
+    /**
+     * Optional callback to notify client when scroll position has changed
+     */
     private OnScrollListener mOnScrollListener;
 
+    /**
+     * Keeps track of our accessory window
+     */
     PopupWindow mPopup;
 
+    /**
+     * Used with type filter window
+     */
     EditText mTextFilter;
 
+    /**
+     * Indicates whether to use pixels-based or position-based scrollbar
+     * properties.
+     */
     private boolean mSmoothScrollbarEnabled = true;
 
+    /**
+     * Indicates that this view supports filtering
+     */
     private boolean mTextFilterEnabled;
 
+    /**
+     * Indicates that this view is currently displaying a filtered view of the data
+     */
     private boolean mFiltered;
 
+    /**
+     * Rectangle used for hit testing children
+     */
     private Rect mTouchFrame;
 
+    /**
+     * The position to resurrect the selected position to.
+     */
     int mResurrectToPosition = INVALID_POSITION;
 
     private ContextMenuInfo mContextMenuInfo = null;
     
+    /**
+     * Used to request a layout when we changed touch mode
+     */
     private static final int TOUCH_MODE_UNKNOWN = -1;
     private static final int TOUCH_MODE_ON = 0;
     private static final int TOUCH_MODE_OFF = 1;
@@ -165,23 +384,52 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
     private static final boolean PROFILE_FLINGING = false;
     private boolean mFlingProfilingStarted = false;
 
+    /**
+     * The last CheckForLongPress runnable we posted, if any
+     */
     private CheckForLongPress mPendingCheckForLongPress;
 
+    /**
+     * The last CheckForTap runnable we posted, if any
+     */
     private Runnable mPendingCheckForTap;
 
+    /**
+     * The last CheckForKeyLongPress runnable we posted, if any
+     */
     private CheckForKeyLongPress mPendingCheckForKeyLongPress;
 
+    /**
+     * Acts upon click
+     */
     private CroquisAbsListView.PerformClick mPerformClick;
 
+    /**
+     * This view is in transcript mode -- it shows the bottom of the list when the data
+     * changes
+     */
     private int mTranscriptMode;
 
+    /**
+     * Indicates that this list is always drawn on top of a solid, single-color, opaque
+     * background
+     */
     private int mCacheColorHint;
 
+    /**
+     * The select child's view (from the adapter's getView) is enabled.
+     */
     private boolean mIsChildViewEnabled;
 
+    /**
+     * The last scroll state reported to clients through {@link OnScrollListener}.
+     */
     private int mLastScrollState = OnScrollListener.SCROLL_STATE_IDLE;
 
-    //private FastScroller mFastScroller;
+    /**
+     * Helper object that renders and controls the fast scroll thumb.
+     */
+    //!private FastScroller mFastScroller;
 
     private boolean mGlobalLayoutListenerAddedFilter;
 
@@ -197,22 +445,67 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
     
     final boolean[] mIsScrap = new boolean[1];
     
+    // True when the popup should be hidden because of a call to
+    // dispatchDisplayHint()
     private boolean mPopupHidden;
     
+    /**
+     * ID of the active pointer. This is used to retain consistency during
+     * drags/flings if multiple pointers are used.
+     */
     private int mActivePointerId = INVALID_POINTER;
     
+    /**
+     * Sentinel value for no current active pointer.
+     * Used by {@link #mActivePointerId}.
+     */
     private static final int INVALID_POINTER = -1;
 
+    /**
+     * Interface definition for a callback to be invoked when the list or grid
+     * has been scrolled.
+     */
     public interface OnScrollListener {
 
+        /**
+         * The view is not scrolling. Note navigating the list using the trackball counts as
+         * being in the idle state since these transitions are not animated.
+         */
         public static int SCROLL_STATE_IDLE = 0;
 
+        /**
+         * The user is scrolling using touch, and their finger is still on the screen
+         */
         public static int SCROLL_STATE_TOUCH_SCROLL = 1;
 
+        /**
+         * The user had previously been scrolling using touch and had performed a fling. The
+         * animation is now coasting to a stop
+         */
         public static int SCROLL_STATE_FLING = 2;
 
+        /**
+         * Callback method to be invoked while the list view or grid view is being scrolled. If the
+         * view is being scrolled, this method will be called before the next frame of the scroll is
+         * rendered. In particular, it will be called before any calls to
+         * {@link Adapter#getView(int, View, ViewGroup)}.
+         *
+         * @param view The view whose scroll state is being reported
+         *
+         * @param scrollState The current scroll state. One of {@link #SCROLL_STATE_IDLE},
+         * {@link #SCROLL_STATE_TOUCH_SCROLL} or {@link #SCROLL_STATE_IDLE}.
+         */
         public void onScrollStateChanged(CroquisAbsListView view, int scrollState);
 
+        /**
+         * Callback method to be invoked when the list or grid has been scrolled. This will be
+         * called after the scroll has completed
+         * @param view The view whose scroll state is being reported
+         * @param firstVisibleItem the index of the first visible cell (ignore if
+         *        visibleItemCount == 0)
+         * @param visibleItemCount the number of visible cells
+         * @param totalItemCount the number of items in the list adaptor
+         */
         public void onScroll(CroquisAbsListView view, int firstVisibleItem, int visibleItemCount,
                 int totalItemCount);
     }
@@ -222,11 +515,11 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         initAbsListView();
 
         setVerticalScrollBarEnabled(true);
-        /*
+        /*!
         TypedArray a = context.obtainStyledAttributes(R.styleable.View);
         initializeScrollbars(a);
         a.recycle();
-        */
+        !*/
     }
 
     public CroquisAbsListView(Context context, AttributeSet attrs) {
@@ -237,7 +530,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         super(context, attrs, defStyle);
         initAbsListView();
 
-        /*
+        /*!
         TypedArray a = context.obtainStyledAttributes(attrs,
                 android.R.styleable.AbsListView, defStyle, 0);
 
@@ -245,34 +538,34 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         if (d != null) {
             setSelector(d);
         }
-        */
+        !*/
 
-        mDrawSelectorOnTop = false;//a.getBoolean(
-                //android.R.styleable.AbsListView_drawSelectorOnTop, false);
+        mDrawSelectorOnTop = false;//!a.getBoolean(
+                //!android.R.styleable.AbsListView_drawSelectorOnTop, false);
 
-        boolean stackFromBottom = false;//a.getBoolean(R.styleable.AbsListView_stackFromBottom, false);
+        boolean stackFromBottom = false;//!a.getBoolean(R.styleable.AbsListView_stackFromBottom, false);
         setStackFromBottom(stackFromBottom);
 
-        boolean scrollingCacheEnabled = true;//a.getBoolean(R.styleable.AbsListView_scrollingCache, true);
+        boolean scrollingCacheEnabled = true;//!a.getBoolean(R.styleable.AbsListView_scrollingCache, true);
         setScrollingCacheEnabled(scrollingCacheEnabled);
 
-        boolean useTextFilter = false;//a.getBoolean(R.styleable.AbsListView_textFilterEnabled, false);
+        boolean useTextFilter = false;//!a.getBoolean(R.styleable.AbsListView_textFilterEnabled, false);
         setTextFilterEnabled(useTextFilter);
 
-        int transcriptMode = TRANSCRIPT_MODE_DISABLED;//a.getInt(R.styleable.AbsListView_transcriptMode,
-                //TRANSCRIPT_MODE_DISABLED);
+        int transcriptMode = TRANSCRIPT_MODE_DISABLED;//!a.getInt(R.styleable.AbsListView_transcriptMode,
+                //!TRANSCRIPT_MODE_DISABLED);
         setTranscriptMode(transcriptMode);
 
-        int color = 0;//a.getColor(R.styleable.AbsListView_cacheColorHint, 0);
+        int color = 0;//!a.getColor(R.styleable.AbsListView_cacheColorHint, 0);
         setCacheColorHint(color);
 
-        //boolean enableFastScroll = a.getBoolean(R.styleable.AbsListView_fastScrollEnabled, false);
-        //setFastScrollEnabled(enableFastScroll);
+        //!boolean enableFastScroll = a.getBoolean(R.styleable.AbsListView_fastScrollEnabled, false);
+        //!setFastScrollEnabled(enableFastScroll);
 
-        boolean smoothScrollbar = true;//a.getBoolean(R.styleable.AbsListView_smoothScrollbar, true);
+        boolean smoothScrollbar = true;//!a.getBoolean(R.styleable.AbsListView_smoothScrollbar, true);
         setSmoothScrollbarEnabled(smoothScrollbar);
 
-        //a.recycle();
+        //!a.recycle();
     }
 
     private void initAbsListView() {
@@ -290,7 +583,16 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         mDensityScale = getContext().getResources().getDisplayMetrics().density;
     }
 
-    /*
+    /*!
+    / **
+     * Enables fast scrolling by letting the user quickly scroll through lists by
+     * dragging the fast scroll thumb. The adapter attached to the list may want
+     * to implement {@link SectionIndexer} if it wishes to display alphabet preview and
+     * jump between sections of the list.
+     * @see SectionIndexer
+     * @see #isFastScrollEnabled()
+     * @param enabled whether or not to enable fast scrolling
+     * /
     public void setFastScrollEnabled(boolean enabled) {
         mFastScrollEnabled = enabled;
         if (enabled) {
@@ -305,47 +607,111 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    / **
+     * Returns the current state of the fast scroll feature.
+     * @see #setFastScrollEnabled(boolean)
+     * @return true if fast scroll is enabled, false otherwise
+     * /
     @ViewDebug.ExportedProperty
     public boolean isFastScrollEnabled() {
         return mFastScrollEnabled;
     }
 
+    / **
+     * If fast scroll is visible, then don't draw the vertical scrollbar.
+     * @hide
+     * /
     @Override
     protected boolean isVerticalScrollBarHidden() {
         return mFastScroller != null && mFastScroller.isVisible();
     }
-    */
+    !*/
 
+    /**
+     * When smooth scrollbar is enabled, the position and size of the scrollbar thumb
+     * is computed based on the number of visible pixels in the visible items. This
+     * however assumes that all list items have the same height. If you use a list in
+     * which items have different heights, the scrollbar will change appearance as the
+     * user scrolls through the list. To avoid this issue, you need to disable this
+     * property.
+     *
+     * When smooth scrollbar is disabled, the position and size of the scrollbar thumb
+     * is based solely on the number of items in the adapter and the position of the
+     * visible items inside the adapter. This provides a stable scrollbar as the user
+     * navigates through a list of items with varying heights.
+     *
+     * @param enabled Whether or not to enable smooth scrollbar.
+     *
+     * @see #setSmoothScrollbarEnabled(boolean)
+     * @attr ref android.R.styleable#AbsListView_smoothScrollbar
+     */
     public void setSmoothScrollbarEnabled(boolean enabled) {
         mSmoothScrollbarEnabled = enabled;
     }
 
+    /**
+     * Returns the current state of the fast scroll feature.
+     *
+     * @return True if smooth scrollbar is enabled is enabled, false otherwise.
+     *
+     * @see #setSmoothScrollbarEnabled(boolean)
+     */
     @ViewDebug.ExportedProperty
     public boolean isSmoothScrollbarEnabled() {
         return mSmoothScrollbarEnabled;
     }
 
+    /**
+     * Set the listener that will receive notifications every time the list scrolls.
+     *
+     * @param l the scroll listener
+     */
     public void setOnScrollListener(OnScrollListener l) {
         mOnScrollListener = l;
         invokeOnItemScrollListener();
     }
 
+    /**
+     * Notify our scroll listener (if there is one) of a change in scroll state
+     */
     void invokeOnItemScrollListener() {
-		/*
+		/*!
         if (mFastScroller != null) {
             mFastScroller.onScroll(this, mFirstPosition, getChildCount(), mItemCount);
         }
-        */
+        !*/
         if (mOnScrollListener != null) {
             mOnScrollListener.onScroll(this, mFirstPosition, getChildCount(), mItemCount);
         }
     }
 
+    /**
+     * Indicates whether the children's drawing cache is used during a scroll.
+     * By default, the drawing cache is enabled but this will consume more memory.
+     *
+     * @return true if the scrolling cache is enabled, false otherwise
+     *
+     * @see #setScrollingCacheEnabled(boolean)
+     * @see View#setDrawingCacheEnabled(boolean)
+     */
     @ViewDebug.ExportedProperty
     public boolean isScrollingCacheEnabled() {
         return mScrollingCacheEnabled;
     }
 
+    /**
+     * Enables or disables the children's drawing cache during a scroll.
+     * By default, the drawing cache is enabled but this will use more memory.
+     *
+     * When the scrolling cache is enabled, the caches are kept after the
+     * first scrolling. You can manually clear the cache by calling
+     * {@link android.view.ViewGroup#setChildrenDrawingCacheEnabled(boolean)}.
+     *
+     * @param enabled true to enable the scroll cache, false otherwise
+     *
+     * @see #isScrollingCacheEnabled()
+     * @see View#setDrawingCacheEnabled(boolean)
+     */
     public void setScrollingCacheEnabled(boolean enabled) {
         if (mScrollingCacheEnabled && !enabled) {
             clearScrollingCache();
@@ -353,10 +719,28 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         mScrollingCacheEnabled = enabled;
     }
 
+    /**
+     * Enables or disables the type filter window. If enabled, typing when
+     * this view has focus will filter the children to match the users input.
+     * Note that the {@link Adapter} used by this view must implement the
+     * {@link Filterable} interface.
+     *
+     * @param textFilterEnabled true to enable type filtering, false otherwise
+     *
+     * @see Filterable
+     */
     public void setTextFilterEnabled(boolean textFilterEnabled) {
         mTextFilterEnabled = textFilterEnabled;
     }
 
+    /**
+     * Indicates whether type filtering is enabled for this view
+     *
+     * @return true if type filtering is enabled, false otherwise
+     *
+     * @see #setTextFilterEnabled(boolean)
+     * @see Filterable
+     */
     @ViewDebug.ExportedProperty
     public boolean isTextFilterEnabled() {
         return mTextFilterEnabled;
@@ -381,11 +765,24 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                 android.R.drawable.list_selector_background));
     }
 
+    /**
+     * Indicates whether the content of this view is pinned to, or stacked from,
+     * the bottom edge.
+     *
+     * @return true if the content is stacked from the bottom edge, false otherwise
+     */
     @ViewDebug.ExportedProperty
     public boolean isStackFromBottom() {
         return mStackFromBottom;
     }
 
+    /**
+     * When stack from bottom is set to true, the list fills its content starting from
+     * the bottom of the view.
+     *
+     * @param stackFromBottom true to pin the view's content to the bottom edge,
+     *        false to pin the view's content to the top edge
+     */
     public void setStackFromBottom(boolean stackFromBottom) {
         if (mStackFromBottom != stackFromBottom) {
             mStackFromBottom = stackFromBottom;
@@ -409,10 +806,16 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         int height;
         String filter;
 
+        /**
+         * Constructor called from {@link AbsListView#onSaveInstanceState()}
+         */
         SavedState(Parcelable superState) {
             super(superState);
         }
 
+        /**
+         * Constructor called from {@link #CREATOR}
+         */
         private SavedState(Parcel in) {
             super(in);
             selectedId = in.readLong();
@@ -460,6 +863,12 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
     @Override
     public Parcelable onSaveInstanceState() {
+        /*
+         * This doesn't really make sense as the place to dismiss the
+         * popups, but there don't seem to be any other useful hooks
+         * that happen early enough to keep from getting complaints
+         * about having leaked the window.
+         */
         dismissPopup();
 
         Parcelable superState = super.onSaveInstanceState();
@@ -540,6 +949,12 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                 ((Filterable) getAdapter()).getFilter() != null;
     }
 
+    /**
+     * Sets the initial value for the text filter.
+     * @param filterText The text to use for the filter.
+     *
+     * @see #setTextFilterEnabled
+     */
     public void setFilterText(String filterText) {
         // TODO: Should we check for acceptFilter()?
         if (mTextFilterEnabled && !TextUtils.isEmpty(filterText)) {
@@ -562,6 +977,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * Returns the list's text filter, if available.
+     * @return the list's text filter or null if filtering isn't enabled
+     */
     public CharSequence getTextFilter() {
         if (mTextFilterEnabled && mTextFilter != null) {
             return mTextFilter.getText();
@@ -584,6 +1003,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * The list is empty. Clear everything out.
+     */
     void resetList() {
         removeAllViewsInLayout();
         mFirstPosition = 0;
@@ -715,6 +1137,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         listPadding.bottom = mSelectionBottomPadding + getPaddingBottom();
     }
 
+    /**
+     * Subclasses should NOT override this method but
+     *  {@link #layoutChildren()} instead.
+     */
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
@@ -731,7 +1157,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         mInLayout = false;
     }
 
-    /*
+    /*!
+    / **
+     * @hide
+     * /
     @Override
     protected boolean setFrame(int left, int top, int right, int bottom) {
         final boolean changed = super.setFrame(left, top, right, bottom);
@@ -748,8 +1177,11 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
         return changed;
     }
-    */
+    !*/
 
+    /**
+     * Subclasses must override this method to layout their children.
+     */
     protected void layoutChildren() {
     }
 
@@ -797,22 +1229,66 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * List padding is the maximum of the normal view's padding and the padding of the selector.
+     *
+     * @see android.view.View#getPaddingTop()
+     * @see #getSelector()
+     *
+     * @return The top list padding.
+     */
     public int getListPaddingTop() {
         return mListPadding.top;
     }
 
+    /**
+     * List padding is the maximum of the normal view's padding and the padding of the selector.
+     *
+     * @see android.view.View#getPaddingBottom()
+     * @see #getSelector()
+     *
+     * @return The bottom list padding.
+     */
     public int getListPaddingBottom() {
         return mListPadding.bottom;
     }
 
+    /**
+     * List padding is the maximum of the normal view's padding and the padding of the selector.
+     *
+     * @see android.view.View#getPaddingLeft()
+     * @see #getSelector()
+     *
+     * @return The left list padding.
+     */
     public int getListPaddingLeft() {
         return mListPadding.left;
     }
 
+    /**
+     * List padding is the maximum of the normal view's padding and the padding of the selector.
+     *
+     * @see android.view.View#getPaddingRight()
+     * @see #getSelector()
+     *
+     * @return The right list padding.
+     */
     public int getListPaddingRight() {
         return mListPadding.right;
     }
 
+    /**
+     * Get a view and have it show the data associated with the specified
+     * position. This is called when we have already discovered that the view is
+     * not available for reuse in the recycle bin. The only choices left are
+     * converting an old view or making a new one.
+     *
+     * @param position The position to display
+     * @param isScrap Array of at least 1 boolean, the first entry will become true if
+     *                the returned view was taken from the scrap heap, false if otherwise.
+     * 
+     * @return A view displaying the data associated with the specified position
+     */
     View obtainView(int position, boolean[] isScrap) {
         isScrap[0] = false;
         View scrapView;
@@ -844,7 +1320,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                 }
             } else {
                 isScrap[0] = true;
-                //child.dispatchFinishTemporaryDetach();
+                //!child.dispatchFinishTemporaryDetach();
             }
         } else {
             child = mAdapter.getView(position, null, this);
@@ -880,7 +1356,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
-        /*
+        /*!
         int saveCount = 0;
         final boolean clipToPadding = (mGroupFlags & CLIP_TO_PADDING_MASK) == CLIP_TO_PADDING_MASK;
         if (clipToPadding) {
@@ -892,7 +1368,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                     scrollY + getBottom() - getTop() - getPaddingBottom());
             mGroupFlags &= ~CLIP_TO_PADDING_MASK;
         }
-        */
+        !*/
 
         final boolean drawSelectorOnTop = mDrawSelectorOnTop;
         if (!drawSelectorOnTop) {
@@ -905,12 +1381,12 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             drawSelector(canvas);
         }
 
-        /*
+        /*!
         if (clipToPadding) {
             canvas.restoreToCount(saveCount);
             mGroupFlags |= CLIP_TO_PADDING_MASK;
         }
-        */
+        !*/
     }
 
     @Override
@@ -920,13 +1396,17 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             rememberSyncState();
         }
 
-        /*
+        /*!
         if (mFastScroller != null) {
             mFastScroller.onSizeChanged(w, h, oldw, oldh);
         }
-        */
+        !*/
     }
 
+    /**
+     * @return True if the current touch mode requires that we draw the selector in the pressed
+     *         state.
+     */
     boolean touchModeDrawsInPressedState() {
         // FIXME use isPressed for this
         switch (mTouchMode) {
@@ -938,6 +1418,13 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * Indicates whether this view is in a state where the selector should be drawn. This will
+     * happen if we have focus but are not in touch mode, or we are in the middle of displaying
+     * the pressed state for an item.
+     *
+     * @return True if the selector should be shown
+     */
     boolean shouldShowSelector() {
         return (hasFocus() && !isInTouchMode()) || touchModeDrawsInPressedState();
     }
@@ -950,10 +1437,26 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * Controls whether the selection highlight drawable should be drawn on top of the item or
+     * behind it.
+     *
+     * @param onTop If true, the selector will be drawn on the item it is highlighting. The default
+     *        is false.
+     *
+     * @attr ref android.R.styleable#AbsListView_drawSelectorOnTop
+     */
     public void setDrawSelectorOnTop(boolean onTop) {
         mDrawSelectorOnTop = onTop;
     }
 
+    /**
+     * Set a Drawable that should be used to highlight the currently selected item.
+     *
+     * @param resID A Drawable resource to use as the selection highlight.
+     *
+     * @attr ref android.R.styleable#AbsListView_listSelector
+     */
     public void setSelector(int resID) {
         setSelector(getResources().getDrawable(resID));
     }
@@ -974,10 +1477,20 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         sel.setState(getDrawableState());
     }
 
+    /**
+     * Returns the selector {@link android.graphics.drawable.Drawable} that is used to draw the
+     * selection in the list.
+     *
+     * @return the drawable used to display the selector
+     */
     public Drawable getSelector() {
         return mSelector;
     }
 
+    /**
+     * Sets the selector state to "pressed" and posts a CheckForKeyLongPress to see if
+     * this is a long press.
+     */
     void keyPressed() {
         if (!isEnabled() || !isClickable()) {
             return;
@@ -1151,10 +1664,26 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         mLastTouchMode = touchMode;
     }
 
+    /**
+     * Creates the ContextMenuInfo returned from {@link #getContextMenuInfo()}. This
+     * methods knows the view, position and ID of the item that received the
+     * long press.
+     *
+     * @param view The view that received the long press.
+     * @param position The position of the item that received the long press.
+     * @param id The ID of the item that received the long press.
+     * @return The extra information that should be returned by
+     *         {@link #getContextMenuInfo()}.
+     */
     ContextMenuInfo createContextMenuInfo(View view, int position, long id) {
         return new AdapterContextMenuInfo(view, position, id);
     }
 
+    /**
+     * A base class for Runnables that will check that their view is still attached to
+     * the original window as when the Runnable was created.
+     *
+     */
     private class WindowRunnnable {
         private int mOriginalAttachCount;
 
@@ -1315,6 +1844,14 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         // get the selector in the right state, but we don't want to press each child.
     }
 
+    /**
+     * Maps a point to a position in the list.
+     *
+     * @param x X in local coordinate
+     * @param y Y in local coordinate
+     * @return The position of the item which contains the specified point, or
+     *         {@link #INVALID_POSITION} if the point does not intersect an item.
+     */
     public int pointToPosition(int x, int y) {
         Rect frame = mTouchFrame;
         if (frame == null) {
@@ -1336,6 +1873,14 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
     }
 
 
+    /**
+     * Maps a point to a the rowId of the item which intersects that point.
+     *
+     * @param x X in local coordinate
+     * @param y Y in local coordinate
+     * @return The rowId of the item which contains the specified point, or {@link #INVALID_ROW_ID}
+     *         if the point does not intersect an item.
+     */
     public long pointToRowId(int x, int y) {
         int position = pointToPosition(x, y);
         if (position >= 0) {
@@ -1442,14 +1987,14 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             return isClickable() || isLongClickable();
         }
 
-        /*
+        /*!
         if (mFastScroller != null) {
             boolean intercepted = mFastScroller.onTouchEvent(ev);
             if (intercepted) {
                 return true;
             }
         }
-        */
+        !*/
 
         final int action = ev.getAction();
 
@@ -1729,11 +2274,11 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
     @Override
     public void draw(Canvas canvas) {
         super.draw(canvas);
-        /*
+        /*!
         if (mFastScroller != null) {
             mFastScroller.draw(canvas);
         }
-        */
+        !*/
     }
 
     @Override
@@ -1741,14 +2286,14 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         int action = ev.getAction();
         View v;
 
-        /*
+        /*!
         if (mFastScroller != null) {
             boolean intercepted = mFastScroller.onInterceptTouchEvent(ev);
             if (intercepted) {
                 return true;
             }
         }
-        */
+        !*/
 
         switch (action & MotionEvent.ACTION_MASK) {
         case MotionEvent.ACTION_DOWN: {
@@ -1824,6 +2369,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void addTouchables(ArrayList<View> views) {
         final int count = getChildCount();
@@ -1843,6 +2391,13 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * Fires an "on scroll state changed" event to the registered
+     * {@link android.widget.AbsListView.OnScrollListener}, if any. The state change
+     * is fired only if the specified state is different from the previously known state.
+     *
+     * @param newState The new scroll state.
+     */
     void reportScrollStateChange(int newState) {
         if (newState != mLastScrollState) {
             if (mOnScrollListener != null) {
@@ -1852,9 +2407,21 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * Responsible for fling behavior. Use {@link #start(int)} to
+     * initiate a fling. Each frame of the fling is handled in {@link #run()}.
+     * A FlingRunnable will keep re-posting itself until the fling is done.
+     *
+     */
     private class FlingRunnable implements Runnable {
+        /**
+         * Tracks the decay of a fling scroll
+         */
         private final Scroller mScroller;
 
+        /**
+         * Y value reported by mScroller on the previous fling
+         */
         private int mLastFlingY;
 
         FlingRunnable() {
@@ -2203,6 +2770,11 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
     
+    /**
+     * Smoothly scroll to the specified adapter position. The view will
+     * scroll such that the indicated position is displayed.
+     * @param position Scroll to this adapter position.
+     */
     public void smoothScrollToPosition(int position) {
         if (mPositionScroller == null) {
             mPositionScroller = new PositionScroller();
@@ -2210,6 +2782,15 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         mPositionScroller.start(position);
     }
     
+    /**
+     * Smoothly scroll to the specified adapter position. The view will
+     * scroll such that the indicated position is displayed, but it will
+     * stop early if scrolling further would scroll boundPosition out of
+     * view. 
+     * @param position Scroll to this adapter position.
+     * @param boundPosition Do not scroll if it would move this adapter
+     *          position out of view.
+     */
     public void smoothScrollToPosition(int position, int boundPosition) {
         if (mPositionScroller == null) {
             mPositionScroller = new PositionScroller();
@@ -2217,6 +2798,11 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         mPositionScroller.start(position, boundPosition);
     }
     
+    /**
+     * Smoothly scroll by distance pixels over duration milliseconds.
+     * @param distance Distance to scroll in pixels.
+     * @param duration Duration of the scroll animation in milliseconds.
+     */
     public void smoothScrollBy(int distance, int duration) {
         if (mFlingRunnable == null) {
             mFlingRunnable = new FlingRunnable();
@@ -2254,6 +2840,14 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         post(mClearScrollingCache);
     }
 
+    /**
+     * Track a motion scroll
+     *
+     * @param deltaY Amount to offset mMotionView. This is the accumulated delta since the motion
+     *        began. Positive numbers mean the user's finger is moving down the screen.
+     * @param incrementalDeltaY Change in deltaY from the previous event.
+     * @return true if we're already at the beginning/end of the list and have nothing to do.
+     */
     boolean trackMotionScroll(int deltaY, int incrementalDeltaY) {
         final int childCount = getChildCount();
         if (childCount == 0) {
@@ -2388,14 +2982,34 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         return false;
     }
 
+    /**
+     * Returns the number of header views in the list. Header views are special views
+     * at the top of the list that should not be recycled during a layout.
+     *
+     * @return The number of header views, 0 in the default implementation.
+     */
     int getHeaderViewsCount() {
         return 0;
     }
 
+    /**
+     * Returns the number of footer views in the list. Footer views are special views
+     * at the bottom of the list that should not be recycled during a layout.
+     *
+     * @return The number of footer views, 0 in the default implementation.
+     */
     int getFooterViewsCount() {
         return 0;
     }
 
+    /**
+     * Fills the gap left open by a touch-scroll. During a touch scroll, children that
+     * remain on screen are shifted and the other ones are discarded. The role of this
+     * method is to fill the gap thus created by performing a partial layout in the
+     * empty space.
+     *
+     * @param down true if the scroll is going down, false if it is going up
+     */
     abstract void fillGap(boolean down);
 
     void hideSelector() {
@@ -2413,6 +3027,11 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * @return A position to select. First we try mSelectedPosition. If that has been clobbered by
+     * entering touch mode, we then try mResurrectToPosition. Values are pinned to the range
+     * of items available in the adapter
+     */
     int reconcileSelectedPosition() {
         int position = mSelectedPosition;
         if (position < 0) {
@@ -2423,8 +3042,20 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         return position;
     }
 
+    /**
+     * Find the row closest to y. This row will be used as the motion row when scrolling
+     *
+     * @param y Where the user touched
+     * @return The position of the first (or only) item in the row containing y
+     */
     abstract int findMotionRow(int y);
     
+    /**
+     * Find the row closest to y. This row will be used as the motion row when scrolling.
+     * 
+     * @param y Where the user touched
+     * @return The position of the first (or only) item in the row closest to y
+     */
     int findClosestMotionRow(int y) {
         final int childCount = getChildCount();
         if (childCount == 0) {
@@ -2435,6 +3066,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         return motionRow != INVALID_POSITION ? motionRow : mFirstPosition + childCount - 1;
     }
 
+    /**
+     * Causes all the views to be rebuilt and redrawn.
+     */
     public void invalidateViews() {
         mDataChanged = true;
         rememberSyncState();
@@ -2442,8 +3076,18 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         invalidate();
     }
 
+    /**
+     * Makes the item at the supplied position selected.
+     *
+     * @param position the position of the new selection
+     */
     abstract void setSelectionInt(int position);
 
+    /**
+     * Attempt to bring the selection back if the user is switching from touch
+     * to trackball mode
+     * @return Whether selection was set to something.
+     */
     boolean resurrectSelection() {
         final int childCount = getChildCount();
 
@@ -2675,12 +3319,18 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         mPopupHidden = hint == INVISIBLE;
     }
 
+    /**
+     * Removes the filter window
+     */
     private void dismissPopup() {
         if (mPopup != null) {
             mPopup.dismiss();
         }
     }
 
+    /**
+     * Shows the filter window
+     */
     private void showPopup() {
         // Make sure we have a window before showing the popup
         if (getWindowVisibility() == View.VISIBLE) {
@@ -2706,6 +3356,16 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * What is the distance between the source and destination rectangles given the direction of
+     * focus navigation between them? The direction basically helps figure out more quickly what is
+     * self evident by the relationship between the rects...
+     *
+     * @param source the source rectangle
+     * @param dest the destination rectangle
+     * @param direction the direction
+     * @return the distance between the rectangles
+     */
     static int getDistance(Rect source, Rect dest, int direction) {
         int sX, sY; // source x, y
         int dX, dY; // dest x, y
@@ -2748,6 +3408,14 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         return mFiltered;
     }
 
+    /**
+     * Sends a key to the text filter window
+     *
+     * @param keyCode The keycode for the event
+     * @param event The actual key event
+     *
+     * @return True if the text filter handled the event, false otherwise.
+     */
     boolean sendToTextFilter(int keyCode, int count, KeyEvent event) {
         if (!acceptFilter()) {
             return false;
@@ -2810,6 +3478,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         return handled;
     }
 
+    /**
+     * Return an InputConnection for editing of the filter text.
+     */
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
         if (isTextFilterEnabled()) {
@@ -2861,13 +3532,22 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         return null;
     }
 
+    /**
+     * For filtering we proxy an input connection to an internal text editor,
+     * and this allows the proxying to happen.
+     */
     @Override
     public boolean checkInputConnectionProxy(View view) {
         return view == mTextFilter;
     }
 
+    /**
+     * Creates the window for the text filter and populates it with an EditText field;
+     *
+     * @param animateEntrance true if the window should appear with an animation
+     */
     private void createTextFilter(boolean animateEntrance) {
-    	/*
+    	/*!
         if (mPopup == null) {
             Context c = getContext();
             PopupWindow p = new PopupWindow(c);
@@ -2898,9 +3578,12 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         } else {
             mPopup.setAnimationStyle(android.R.style.Animation_TypingFilterRestore);
         }
-        */
+        !*/
     }
 
+    /**
+     * Clear the text filter.
+     */
     public void clearTextFilter() {
         if (mFiltered) {
             mTextFilter.setText("");
@@ -2911,6 +3594,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * Returns if the ListView currently has a text filter.
+     */
     public boolean hasTextFilter() {
         return mFiltered;
     }
@@ -2930,9 +3616,18 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
     }
 
+    /**
+     * For our text watcher that is associated with the text filter.  Does
+     * nothing.
+     */
     public void beforeTextChanged(CharSequence s, int start, int count, int after) {
     }
 
+    /**
+     * For our text watcher that is associated with the text filter. Performs
+     * the actual filtering as the text changes, and takes care of hiding and
+     * showing the popup displaying the currently entered filter text.
+     */
     public void onTextChanged(CharSequence s, int start, int before, int count) {
         if (mPopup != null && isTextFilterEnabled()) {
             int length = s.length();
@@ -2959,6 +3654,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * For our text watcher that is associated with the text filter.  Does
+     * nothing.
+     */
     public void afterTextChanged(Editable s) {
     }
 
@@ -2984,10 +3683,26 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         return p instanceof CroquisAbsListView.LayoutParams;
     }
 
+    /**
+     * Puts the list or grid into transcript mode. In this mode the list or grid will always scroll
+     * to the bottom to show new items.
+     *
+     * @param mode the transcript mode to set
+     *
+     * @see #TRANSCRIPT_MODE_DISABLED
+     * @see #TRANSCRIPT_MODE_NORMAL
+     * @see #TRANSCRIPT_MODE_ALWAYS_SCROLL
+     */
     public void setTranscriptMode(int mode) {
         mTranscriptMode = mode;
     }
 
+    /**
+     * Returns the current transcript mode.
+     *
+     * @return {@link #TRANSCRIPT_MODE_DISABLED}, {@link #TRANSCRIPT_MODE_NORMAL} or
+     *         {@link #TRANSCRIPT_MODE_ALWAYS_SCROLL}
+     */
     public int getTranscriptMode() {
         return mTranscriptMode;
     }
@@ -2997,6 +3712,12 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         return mCacheColorHint;
     }
 
+    /**
+     * When set to a non-zero value, the cache color hint indicates that this list is always drawn
+     * on top of a solid, single-color, opaque background
+     *
+     * @param color The background color
+     */
     public void setCacheColorHint(int color) {
         if (color != mCacheColorHint) {
             mCacheColorHint = color;
@@ -3008,10 +3729,23 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * When set to a non-zero value, the cache color hint indicates that this list is always drawn
+     * on top of a solid, single-color, opaque background
+     *
+     * @return The cache color hint
+     */
     public int getCacheColorHint() {
         return mCacheColorHint;
     }
 
+    /**
+     * Move all views (excluding headers and footers) held by this AbsListView into the supplied
+     * List. This includes views displayed on the screen as well as views stored in AbsListView's
+     * internal view recycler.
+     *
+     * @param views A list into which to put the reclaimed views
+     */
     public void reclaimViews(List<View> views) {
         int childCount = getChildCount();
         RecyclerListener listener = mRecycler.mRecyclerListener;
@@ -3033,7 +3767,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         removeAllViewsInLayout();
     }
 
-    /*
+    /*!
+    / **
+     * @hide
+     * /
     @Override
     protected boolean onConsistencyCheck(int consistency) {
         boolean result = super.onConsistencyCheck(consistency);
@@ -3087,22 +3824,54 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
         return result;
     }
-    */
+    !*/
 
+    /**
+     * Sets the recycler listener to be notified whenever a View is set aside in
+     * the recycler for later reuse. This listener can be used to free resources
+     * associated to the View.
+     *
+     * @param listener The recycler listener to be notified of views set aside
+     *        in the recycler.
+     *
+     * @see android.widget.AbsListView.RecycleBin
+     * @see android.widget.AbsListView.RecyclerListener
+     */
     public void setRecyclerListener(RecyclerListener listener) {
         mRecycler.mRecyclerListener = listener;
     }
 
+    /**
+     * AbsListView extends LayoutParams to provide a place to hold the view type.
+     */
     public static class LayoutParams extends ViewGroup.LayoutParams {
+        /**
+         * View type for this view, as returned by
+         * {@link android.widget.Adapter#getItemViewType(int) }
+         */
         @ViewDebug.ExportedProperty(mapping = {
             @ViewDebug.IntToString(from = ITEM_VIEW_TYPE_IGNORE, to = "ITEM_VIEW_TYPE_IGNORE"),
             @ViewDebug.IntToString(from = ITEM_VIEW_TYPE_HEADER_OR_FOOTER, to = "ITEM_VIEW_TYPE_HEADER_OR_FOOTER")
         })
         int viewType;
 
+        /**
+         * When this boolean is set, the view has been added to the AbsListView
+         * at least once. It is used to know whether headers/footers have already
+         * been added to the list view and whether they should be treated as
+         * recycled views or not.
+         */
         @ViewDebug.ExportedProperty
         boolean recycledHeaderFooter;
 
+        /**
+         * When an AbsListView is measured with an AT_MOST measure spec, it needs
+         * to obtain children views to measure itself. When doing so, the children
+         * are not attached to the window, but put in the recycler which assumes
+         * they've been attached before. Setting this flag will force the reused
+         * view to be attached to the window rather than just attached to the
+         * parent.
+         */
         @ViewDebug.ExportedProperty
         boolean forceAdd;
 
@@ -3124,17 +3893,54 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    /**
+     * A RecyclerListener is used to receive a notification whenever a View is placed
+     * inside the RecycleBin's scrap heap. This listener is used to free resources
+     * associated to Views placed in the RecycleBin.
+     *
+     * @see android.widget.AbsListView.RecycleBin
+     * @see android.widget.AbsListView#setRecyclerListener(android.widget.AbsListView.RecyclerListener)
+     */
     public static interface RecyclerListener {
+        /**
+         * Indicates that the specified View was moved into the recycler's scrap heap.
+         * The view is not displayed on screen any more and any expensive resource
+         * associated with the view should be discarded.
+         *
+         * @param view
+         */
         void onMovedToScrapHeap(View view);
     }
 
+    /**
+     * The RecycleBin facilitates reuse of views across layouts. The RecycleBin has two levels of
+     * storage: ActiveViews and ScrapViews. ActiveViews are those views which were onscreen at the
+     * start of a layout. By construction, they are displaying current information. At the end of
+     * layout, all views in ActiveViews are demoted to ScrapViews. ScrapViews are old views that
+     * could potentially be used by the adapter to avoid allocating views unnecessarily.
+     *
+     * @see android.widget.AbsListView#setRecyclerListener(android.widget.AbsListView.RecyclerListener)
+     * @see android.widget.AbsListView.RecyclerListener
+     */
     class RecycleBin {
         private RecyclerListener mRecyclerListener;
 
+        /**
+         * The position of the first view stored in mActiveViews.
+         */
         private int mFirstActivePosition;
 
+        /**
+         * Views that were on screen at the start of layout. This array is populated at the start of
+         * layout, and at the end of layout all view in mActiveViews are moved to mScrapViews.
+         * Views in mActiveViews represent a contiguous range of Views, with position of the first
+         * view store in mFirstActivePosition.
+         */
         private View[] mActiveViews = new View[0];
 
+        /**
+         * Unsorted views that can be used by the adapter as a convert view.
+         */
         private ArrayList<View>[] mScrapViews;
 
         private int mViewTypeCount;
@@ -3179,6 +3985,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             return viewType >= 0;
         }
 
+        /**
+         * Clears the scrap heap.
+         */
         void clear() {
             if (mViewTypeCount == 1) {
                 final ArrayList<View> scrap = mCurrentScrap;
@@ -3198,6 +4007,13 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             }
         }
 
+        /**
+         * Fill ActiveViews with all of the children of the AbsListView.
+         *
+         * @param childCount The minimum number of views mActiveViews should hold
+         * @param firstActivePosition The position of the first view that will be stored in
+         *        mActiveViews
+         */
         void fillActiveViews(int childCount, int firstActivePosition) {
             if (mActiveViews.length < childCount) {
                 mActiveViews = new View[childCount];
@@ -3217,6 +4033,13 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             }
         }
 
+        /**
+         * Get the view corresponding to the specified position. The view will be removed from
+         * mActiveViews if it is found.
+         *
+         * @param position The position to look up in mActiveViews
+         * @return The view if it is found, null otherwise
+         */
         View getActiveView(int position) {
             int index = position - mFirstActivePosition;
             final View[] activeViews = mActiveViews;
@@ -3228,6 +4051,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             return null;
         }
 
+        /**
+         * @return A view from the ScrapViews collection. These are unordered.
+         */
         View getScrapView(int position) {
             ArrayList<View> scrapViews;
             if (mViewTypeCount == 1) {
@@ -3251,6 +4077,11 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             return null;
         }
 
+        /**
+         * Put a view into the ScapViews list. These views are unordered.
+         *
+         * @param scrap The view to add
+         */
         void addScrapView(View scrap) {
             CroquisAbsListView.LayoutParams lp = (CroquisAbsListView.LayoutParams) scrap.getLayoutParams();
             if (lp == null) {
@@ -3268,10 +4099,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             }
 
             if (mViewTypeCount == 1) {
-                //scrap.dispatchStartTemporaryDetach();
+                //!scrap.dispatchStartTemporaryDetach();
                 mCurrentScrap.add(scrap);
             } else {
-                //scrap.dispatchStartTemporaryDetach();
+                //!scrap.dispatchStartTemporaryDetach();
                 mScrapViews[viewType].add(scrap);
             }
 
@@ -3280,6 +4111,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             }
         }
 
+        /**
+         * Move all views remaining in mActiveViews to mScrapViews.
+         */
         void scrapActiveViews() {
             final View[] activeViews = mActiveViews;
             final boolean hasListener = mRecyclerListener != null;
@@ -3305,7 +4139,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                     if (multipleScraps) {
                         scrapViews = mScrapViews[whichScrap];
                     }
-                    //victim.dispatchStartTemporaryDetach();
+                    //!victim.dispatchStartTemporaryDetach();
                     scrapViews.add(victim);
 
                     if (hasListener) {
@@ -3323,6 +4157,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             pruneScrapViews();
         }
 
+        /**
+         * Makes sure that the size of mScrapViews does not exceed the size of mActiveViews.
+         * (This can happen if an adapter does not recycle its views).
+         */
         private void pruneScrapViews() {
             final int maxViews = mActiveViews.length;
             final int viewTypeCount = mViewTypeCount;
@@ -3338,6 +4176,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             }
         }
 
+        /**
+         * Puts all views in the scrap heap into the supplied list.
+         */
         void reclaimScrapViews(List<View> views) {
             if (mViewTypeCount == 1) {
                 views.addAll(mCurrentScrap);
@@ -3351,6 +4192,11 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             }
         }
 
+        /**
+         * Updates the cache color hint of all known views.
+         *
+         * @param color The new cache color hint.
+         */
         void setCacheColorHint(int color) {
             if (mViewTypeCount == 1) {
                 final ArrayList<View> scrap = mCurrentScrap;
@@ -3380,6 +4226,8 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
+    //============================================================
+    // added by croquis.com
     public void offsetChildrenTopAndBottom(int offset) {
         final int count = getChildCount();
 

@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2006 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.croquis.list;
 
 import android.database.DataSetObserver;
@@ -11,6 +27,13 @@ import android.widget.WrapperListAdapter;
 
 import java.util.ArrayList;
 
+/**
+ * ListAdapter used when a ListView has header views. This ListAdapter
+ * wraps another one and also keeps track of the header views and their
+ * associated data objects.
+ *<p>This is intended as a base class; you will probably not need to
+ * use this class directly in your own code.
+ */
 public class CroquisHeaderViewListAdapter implements WrapperListAdapter, Filterable {
 
     private final ListAdapter mAdapter;
