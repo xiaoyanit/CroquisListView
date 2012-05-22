@@ -18,7 +18,6 @@ package com.croquis.list;
 
 import android.content.Context;
 import android.database.DataSetObserver;
-import android.os.Handler;
 import android.os.Parcelable;
 import android.os.SystemClock;
 import android.util.AttributeSet;
@@ -27,7 +26,6 @@ import android.view.ContextMenu;
 import android.view.SoundEffectConstants;
 import android.view.View;
 import android.view.ViewDebug;
-import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.Adapter;
 
@@ -39,7 +37,7 @@ import android.widget.Adapter;
  * See {@link ListView}, {@link GridView}, {@link Spinner} and
  *      {@link Gallery} for commonly used subclasses of AdapterView.
  */
-public abstract class CroquisAdapterView<T extends Adapter> extends ViewGroup {
+public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeViewGroup {
 
     /**
      * The item view type returned by {@link Adapter#getItemViewType(int)} when
@@ -56,7 +54,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends ViewGroup {
     /**
      * The position of the first child displayed
      */
-    @ViewDebug.ExportedProperty
+    //!@ViewDebug.ExportedProperty(category = "scrolling")
     int mFirstPosition = 0;
 
     /**
@@ -141,7 +139,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends ViewGroup {
      * The position within the adapter's data set of the item to select
      * during the next layout.
      */
-    @ViewDebug.ExportedProperty    
+    //!@ViewDebug.ExportedProperty(category = "list")
     int mNextSelectedPosition = INVALID_POSITION;
 
     /**
@@ -152,7 +150,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends ViewGroup {
     /**
      * The position within the adapter's data set of the currently selected item.
      */
-    @ViewDebug.ExportedProperty    
+    //!@ViewDebug.ExportedProperty(category = "list")
     int mSelectedPosition = INVALID_POSITION;
 
     /**
@@ -168,7 +166,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends ViewGroup {
     /**
      * The number of items in the current adapter.
      */
-    @ViewDebug.ExportedProperty
+    //!@ViewDebug.ExportedProperty(category = "list")
     int mItemCount;
 
     /**
@@ -808,7 +806,6 @@ public abstract class CroquisAdapterView<T extends Adapter> extends ViewGroup {
             mNextSelectedPosition = INVALID_POSITION;
             mNextSelectedRowId = INVALID_ROW_ID;
             mNeedSync = false;
-            checkSelectionChanged();
 
             checkFocus();
             requestLayout();
@@ -819,13 +816,21 @@ public abstract class CroquisAdapterView<T extends Adapter> extends ViewGroup {
         }
     }
 
-    private class SelectionNotifier extends Handler implements Runnable {
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        removeCallbacks(mSelectionNotifier);
+    }
+
+    private class SelectionNotifier implements Runnable {
         public void run() {
             if (mDataChanged) {
                 // Data has changed between when this SelectionNotifier
                 // was posted and now. We need to wait until the AdapterView
                 // has been synched to the new data.
-                post(this);
+                if (getAdapter() != null) {
+                    post(this);
+                }
             } else {
                 fireOnSelected();
             }
@@ -842,14 +847,14 @@ public abstract class CroquisAdapterView<T extends Adapter> extends ViewGroup {
                 if (mSelectionNotifier == null) {
                     mSelectionNotifier = new SelectionNotifier();
                 }
-                mSelectionNotifier.post(mSelectionNotifier);
+                post(mSelectionNotifier);
             } else {
                 fireOnSelected();
             }
         }
 
         // we fire selection events here not in View
-        if (mSelectedPosition != INVALID_POSITION && isShown() && !isInTouchMode()) {
+        if (mSelectedPosition != CroquisListView.INVALID_POSITION && isShown() && !isInTouchMode()) {
             sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_SELECTED);
         }
     }
