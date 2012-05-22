@@ -14,3 +14,7 @@ gen/
 
 # Local configuration file (sdk path, etc)
 local.properties
+
+# ignore copied sources
+*/sample/res/*/overscroll_*.png
+*/sample/src/com/croquis/list/*.java
