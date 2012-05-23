@@ -9,18 +9,15 @@ public abstract class CroquisFakeViewGroup extends ViewGroup {
 
     public CroquisFakeViewGroup(Context context) {
         super(context);
-        setOverScrollMode(OVER_SCROLL_IF_CONTENT_SCROLLS);
     }
 
     public CroquisFakeViewGroup(Context context, AttributeSet attrs) {
         super(context, attrs);
-        setOverScrollMode(OVER_SCROLL_IF_CONTENT_SCROLLS);
     }
 
     public CroquisFakeViewGroup(Context context, AttributeSet attrs,
             int defStyle) {
         super(context, attrs, defStyle);
-        setOverScrollMode(OVER_SCROLL_IF_CONTENT_SCROLLS);
     }
 
     // from ViewGroup.java
