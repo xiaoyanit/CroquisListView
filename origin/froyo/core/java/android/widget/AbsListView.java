@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-package com.croquis.list;
+package android.widget;
+
+import com.android.internal.R;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
@@ -29,9 +32,11 @@ import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
@@ -45,12 +50,6 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputConnectionWrapper;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.EditText;
-import android.widget.Filter;
-import android.widget.Filterable;
-import android.widget.ListAdapter;
-import android.widget.PopupWindow;
-import android.widget.Scroller;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +69,7 @@ import java.util.List;
  * @attr ref android.R.styleable#AbsListView_fastScrollEnabled
  * @attr ref android.R.styleable#AbsListView_smoothScrollbar
  */
-public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter> implements TextWatcher,
+public abstract class AbsListView extends AdapterView<ListAdapter> implements TextWatcher,
         ViewTreeObserver.OnGlobalLayoutListener, Filter.FilterListener,
         ViewTreeObserver.OnTouchModeChangeListener {
 
@@ -324,7 +323,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
     /**
      * Whether or not to enable the fast scroll feature on this list
      */
-    //!boolean mFastScrollEnabled;
+    boolean mFastScrollEnabled;
 
     /**
      * Optional callback to notify client when scroll position has changed
@@ -402,7 +401,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
     /**
      * Acts upon click
      */
-    private CroquisAbsListView.PerformClick mPerformClick;
+    private AbsListView.PerformClick mPerformClick;
 
     /**
      * This view is in transcript mode -- it shows the bottom of the list when the data
@@ -429,7 +428,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
     /**
      * Helper object that renders and controls the fast scroll thumb.
      */
-    //!private FastScroller mFastScroller;
+    private FastScroller mFastScroller;
 
     private boolean mGlobalLayoutListenerAddedFilter;
 
@@ -495,7 +494,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
          * @param scrollState The current scroll state. One of {@link #SCROLL_STATE_IDLE},
          * {@link #SCROLL_STATE_TOUCH_SCROLL} or {@link #SCROLL_STATE_IDLE}.
          */
-        public void onScrollStateChanged(CroquisAbsListView view, int scrollState);
+        public void onScrollStateChanged(AbsListView view, int scrollState);
 
         /**
          * Callback method to be invoked when the list or grid has been scrolled. This will be
@@ -506,66 +505,62 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
          * @param visibleItemCount the number of visible cells
          * @param totalItemCount the number of items in the list adaptor
          */
-        public void onScroll(CroquisAbsListView view, int firstVisibleItem, int visibleItemCount,
+        public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount,
                 int totalItemCount);
     }
 
-    public CroquisAbsListView(Context context) {
+    public AbsListView(Context context) {
         super(context);
         initAbsListView();
 
         setVerticalScrollBarEnabled(true);
-        /*!
         TypedArray a = context.obtainStyledAttributes(R.styleable.View);
         initializeScrollbars(a);
         a.recycle();
-        !*/
     }
 
-    public CroquisAbsListView(Context context, AttributeSet attrs) {
-        this(context, attrs, android.R.attr.absListViewStyle);
+    public AbsListView(Context context, AttributeSet attrs) {
+        this(context, attrs, com.android.internal.R.attr.absListViewStyle);
     }
 
-    public CroquisAbsListView(Context context, AttributeSet attrs, int defStyle) {
+    public AbsListView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
         initAbsListView();
 
-        /*!
         TypedArray a = context.obtainStyledAttributes(attrs,
-                android.R.styleable.AbsListView, defStyle, 0);
+                com.android.internal.R.styleable.AbsListView, defStyle, 0);
 
-        Drawable d = a.getDrawable(android.R.styleable.AbsListView_listSelector);
+        Drawable d = a.getDrawable(com.android.internal.R.styleable.AbsListView_listSelector);
         if (d != null) {
             setSelector(d);
         }
-        !*/
 
-        mDrawSelectorOnTop = false;//!a.getBoolean(
-                //!android.R.styleable.AbsListView_drawSelectorOnTop, false);
+        mDrawSelectorOnTop = a.getBoolean(
+                com.android.internal.R.styleable.AbsListView_drawSelectorOnTop, false);
 
-        boolean stackFromBottom = false;//!a.getBoolean(R.styleable.AbsListView_stackFromBottom, false);
+        boolean stackFromBottom = a.getBoolean(R.styleable.AbsListView_stackFromBottom, false);
         setStackFromBottom(stackFromBottom);
 
-        boolean scrollingCacheEnabled = true;//!a.getBoolean(R.styleable.AbsListView_scrollingCache, true);
+        boolean scrollingCacheEnabled = a.getBoolean(R.styleable.AbsListView_scrollingCache, true);
         setScrollingCacheEnabled(scrollingCacheEnabled);
 
-        boolean useTextFilter = false;//!a.getBoolean(R.styleable.AbsListView_textFilterEnabled, false);
+        boolean useTextFilter = a.getBoolean(R.styleable.AbsListView_textFilterEnabled, false);
         setTextFilterEnabled(useTextFilter);
 
-        int transcriptMode = TRANSCRIPT_MODE_DISABLED;//!a.getInt(R.styleable.AbsListView_transcriptMode,
-                //!TRANSCRIPT_MODE_DISABLED);
+        int transcriptMode = a.getInt(R.styleable.AbsListView_transcriptMode,
+                TRANSCRIPT_MODE_DISABLED);
         setTranscriptMode(transcriptMode);
 
-        int color = 0;//!a.getColor(R.styleable.AbsListView_cacheColorHint, 0);
+        int color = a.getColor(R.styleable.AbsListView_cacheColorHint, 0);
         setCacheColorHint(color);
 
-        //!boolean enableFastScroll = a.getBoolean(R.styleable.AbsListView_fastScrollEnabled, false);
-        //!setFastScrollEnabled(enableFastScroll);
+        boolean enableFastScroll = a.getBoolean(R.styleable.AbsListView_fastScrollEnabled, false);
+        setFastScrollEnabled(enableFastScroll);
 
-        boolean smoothScrollbar = true;//!a.getBoolean(R.styleable.AbsListView_smoothScrollbar, true);
+        boolean smoothScrollbar = a.getBoolean(R.styleable.AbsListView_smoothScrollbar, true);
         setSmoothScrollbarEnabled(smoothScrollbar);
 
-        //!a.recycle();
+        a.recycle();
     }
 
     private void initAbsListView() {
@@ -576,15 +571,14 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         setAlwaysDrawnWithCacheEnabled(false);
         setScrollingCacheEnabled(true);
 
-        final ViewConfiguration configuration = ViewConfiguration.get(getContext());
+        final ViewConfiguration configuration = ViewConfiguration.get(mContext);
         mTouchSlop = configuration.getScaledTouchSlop();
         mMinimumVelocity = configuration.getScaledMinimumFlingVelocity();
         mMaximumVelocity = configuration.getScaledMaximumFlingVelocity();
         mDensityScale = getContext().getResources().getDisplayMetrics().density;
     }
 
-    /*!
-    / **
+    /**
      * Enables fast scrolling by letting the user quickly scroll through lists by
      * dragging the fast scroll thumb. The adapter attached to the list may want
      * to implement {@link SectionIndexer} if it wishes to display alphabet preview and
@@ -592,7 +586,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
      * @see SectionIndexer
      * @see #isFastScrollEnabled()
      * @param enabled whether or not to enable fast scrolling
-     * /
+     */
     public void setFastScrollEnabled(boolean enabled) {
         mFastScrollEnabled = enabled;
         if (enabled) {
@@ -607,25 +601,24 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         }
     }
 
-    / **
+    /**
      * Returns the current state of the fast scroll feature.
      * @see #setFastScrollEnabled(boolean)
      * @return true if fast scroll is enabled, false otherwise
-     * /
+     */
     @ViewDebug.ExportedProperty
     public boolean isFastScrollEnabled() {
         return mFastScrollEnabled;
     }
 
-    / **
+    /**
      * If fast scroll is visible, then don't draw the vertical scrollbar.
      * @hide
-     * /
+     */
     @Override
     protected boolean isVerticalScrollBarHidden() {
         return mFastScroller != null && mFastScroller.isVisible();
     }
-    !*/
 
     /**
      * When smooth scrollbar is enabled, the position and size of the scrollbar thumb
@@ -675,11 +668,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
      * Notify our scroll listener (if there is one) of a change in scroll state
      */
     void invokeOnItemScrollListener() {
-		/*!
         if (mFastScroller != null) {
             mFastScroller.onScroll(this, mFirstPosition, getChildCount(), mItemCount);
         }
-        !*/
         if (mOnScrollListener != null) {
             mOnScrollListener.onScroll(this, mFirstPosition, getChildCount(), mItemCount);
         }
@@ -762,7 +753,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
     private void useDefaultSelector() {
         setSelector(getResources().getDrawable(
-                android.R.drawable.list_selector_background));
+                com.android.internal.R.drawable.list_selector_background));
     }
 
     /**
@@ -1060,7 +1051,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                 int height = view.getHeight();
                 if (height > 0) {
                     return Math.max(firstPosition * 100 - (top * 100) / height +
-                            (int)((float)getScrollY() / getHeight() * mItemCount * 100), 0);
+                            (int)((float)mScrollY / getHeight() * mItemCount * 100), 0);
                 }
             } else {
                 int index;
@@ -1102,7 +1093,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
             final int top = getChildAt(0).getTop();
             final float fadeLength = (float) getVerticalFadingEdgeLength();
-            return top < getPaddingTop() ? (float) -(top - getPaddingTop()) / fadeLength : fadeEdge;
+            return top < mPaddingTop ? (float) -(top - mPaddingTop) / fadeLength : fadeEdge;
         }
     }
 
@@ -1120,8 +1111,8 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             final int bottom = getChildAt(count - 1).getBottom();
             final int height = getHeight();
             final float fadeLength = (float) getVerticalFadingEdgeLength();
-            return bottom > height - getPaddingBottom() ?
-                    (float) (bottom - height + getPaddingBottom()) / fadeLength : fadeEdge;
+            return bottom > height - mPaddingBottom ?
+                    (float) (bottom - height + mPaddingBottom) / fadeLength : fadeEdge;
         }
     }
 
@@ -1131,10 +1122,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             useDefaultSelector();
         }
         final Rect listPadding = mListPadding;
-        listPadding.left = mSelectionLeftPadding + getPaddingLeft();
-        listPadding.top = mSelectionTopPadding + getPaddingTop();
-        listPadding.right = mSelectionRightPadding + getPaddingRight();
-        listPadding.bottom = mSelectionBottomPadding + getPaddingBottom();
+        listPadding.left = mSelectionLeftPadding + mPaddingLeft;
+        listPadding.top = mSelectionTopPadding + mPaddingTop;
+        listPadding.right = mSelectionRightPadding + mPaddingRight;
+        listPadding.bottom = mSelectionBottomPadding + mPaddingBottom;
     }
 
     /**
@@ -1157,10 +1148,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         mInLayout = false;
     }
 
-    /*!
-    / **
+    /**
      * @hide
-     * /
+     */
     @Override
     protected boolean setFrame(int left, int top, int right, int bottom) {
         final boolean changed = super.setFrame(left, top, right, bottom);
@@ -1177,7 +1167,6 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
         return changed;
     }
-    !*/
 
     /**
      * Subclasses must override this method to layout their children.
@@ -1212,7 +1201,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             // ... Or bottom of the last element is not visible
             if (!canScrollDown && count > 0) {
                 View child = getChildAt(count - 1);
-                canScrollDown = child.getBottom() > getBottom() - mListPadding.bottom;
+                canScrollDown = child.getBottom() > mBottom - mListPadding.bottom;
             }
 
             mScrollDown.setVisibility(canScrollDown ? View.VISIBLE : View.INVISIBLE);
@@ -1320,7 +1309,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                 }
             } else {
                 isScrap[0] = true;
-                //!child.dispatchFinishTemporaryDetach();
+                child.dispatchFinishTemporaryDetach();
             }
         } else {
             child = mAdapter.getView(position, null, this);
@@ -1356,19 +1345,17 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
-        /*!
         int saveCount = 0;
         final boolean clipToPadding = (mGroupFlags & CLIP_TO_PADDING_MASK) == CLIP_TO_PADDING_MASK;
         if (clipToPadding) {
             saveCount = canvas.save();
-            final int scrollX = getScrollX();
-            final int scrollY = getScrollY();
-            canvas.clipRect(scrollX + getPaddingLeft(), scrollY + getPaddingTop(),
-                    scrollX + getRight() - getLeft() - getPaddingRight(),
-                    scrollY + getBottom() - getTop() - getPaddingBottom());
+            final int scrollX = mScrollX;
+            final int scrollY = mScrollY;
+            canvas.clipRect(scrollX + mPaddingLeft, scrollY + mPaddingTop,
+                    scrollX + mRight - mLeft - mPaddingRight,
+                    scrollY + mBottom - mTop - mPaddingBottom);
             mGroupFlags &= ~CLIP_TO_PADDING_MASK;
         }
-        !*/
 
         final boolean drawSelectorOnTop = mDrawSelectorOnTop;
         if (!drawSelectorOnTop) {
@@ -1381,12 +1368,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             drawSelector(canvas);
         }
 
-        /*!
         if (clipToPadding) {
             canvas.restoreToCount(saveCount);
             mGroupFlags |= CLIP_TO_PADDING_MASK;
         }
-        !*/
     }
 
     @Override
@@ -1396,11 +1381,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             rememberSyncState();
         }
 
-        /*!
         if (mFastScroller != null) {
             mFastScroller.onSizeChanged(w, h, oldw, oldh);
         }
-        !*/
     }
 
     /**
@@ -1627,8 +1610,8 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                 // let the fling runnable report it's new state which
                 // should be idle
                 mFlingRunnable.endFling();
-                if (getScrollY() != 0) {
-					scrollTo(0, 0);
+                if (mScrollY != 0) {
+                    mScrollY = 0;
                     invalidate();
                 }
             }
@@ -1767,12 +1750,12 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         boolean handled = false;
 
         if (mOnItemLongClickListener != null) {
-            handled = mOnItemLongClickListener.onItemLongClick(CroquisAbsListView.this, child,
+            handled = mOnItemLongClickListener.onItemLongClick(AbsListView.this, child,
                     longPressPosition, longPressId);
         }
         if (!handled) {
             mContextMenuInfo = createContextMenuInfo(child, longPressPosition, longPressId);
-            handled = super.showContextMenuForChild(CroquisAbsListView.this);
+            handled = super.showContextMenuForChild(AbsListView.this);
         }
         if (handled) {
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
@@ -1793,7 +1776,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             boolean handled = false;
 
             if (mOnItemLongClickListener != null) {
-                handled = mOnItemLongClickListener.onItemLongClick(CroquisAbsListView.this, originalView,
+                handled = mOnItemLongClickListener.onItemLongClick(AbsListView.this, originalView,
                         longPressPosition, longPressId);
             }
             if (!handled) {
@@ -1987,14 +1970,12 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             return isClickable() || isLongClickable();
         }
 
-        /*!
         if (mFastScroller != null) {
             boolean intercepted = mFastScroller.onTouchEvent(ev);
             if (intercepted) {
                 return true;
             }
         }
-        !*/
 
         final int action = ev.getAction();
 
@@ -2123,7 +2104,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                         mPerformClick = new PerformClick();
                     }
 
-                    final CroquisAbsListView.PerformClick performClick = mPerformClick;
+                    final AbsListView.PerformClick performClick = mPerformClick;
                     performClick.mChild = child;
                     performClick.mClickMotionPosition = motionPosition;
                     performClick.rememberWindowAttachCount();
@@ -2274,11 +2255,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
     @Override
     public void draw(Canvas canvas) {
         super.draw(canvas);
-        /*!
         if (mFastScroller != null) {
             mFastScroller.draw(canvas);
         }
-        !*/
     }
 
     @Override
@@ -2286,14 +2265,12 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         int action = ev.getAction();
         View v;
 
-        /*!
         if (mFastScroller != null) {
             boolean intercepted = mFastScroller.onInterceptTouchEvent(ev);
             if (intercepted) {
                 return true;
             }
         }
-        !*/
 
         switch (action & MotionEvent.ACTION_MASK) {
         case MotionEvent.ACTION_DOWN: {
@@ -2492,7 +2469,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                     mMotionViewOriginalTop = firstView.getTop();
 
                     // Don't fling more than 1 screen
-                    delta = Math.min(getHeight() - getPaddingBottom() - getPaddingTop() - 1, delta);
+                    delta = Math.min(getHeight() - mPaddingBottom - mPaddingTop - 1, delta);
                 } else {
                     // List is moving towards the bottom. Use last view as mMotionPosition
                     int offsetToLast = getChildCount() - 1;
@@ -2502,7 +2479,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                     mMotionViewOriginalTop = lastView.getTop();
 
                     // Don't fling more than 1 screen
-                    delta = Math.max(-(getHeight() - getPaddingBottom() - getPaddingTop() - 1), delta);
+                    delta = Math.max(-(getHeight() - mPaddingBottom - mPaddingTop - 1), delta);
                 }
 
                 final boolean atEnd = trackMotionScroll(delta, delta);
@@ -2545,7 +2522,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         private final int mExtraScroll;
         
         PositionScroller() {
-            mExtraScroll = ViewConfiguration.get(getContext()).getScaledFadingEdgeLength();
+            mExtraScroll = ViewConfiguration.get(mContext).getScaledFadingEdgeLength();
         }
         
         void start(int position) {
@@ -2827,7 +2804,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                     if (mCachingStarted) {
                         mCachingStarted = false;
                         setChildrenDrawnWithCacheEnabled(false);
-                        if ((getPersistentDrawingCache() & PERSISTENT_SCROLLING_CACHE) == 0) {
+                        if ((mPersistentDrawingCache & PERSISTENT_SCROLLING_CACHE) == 0) {
                             setChildrenDrawingCacheEnabled(false);
                         }
                         if (!isAlwaysDrawnWithCacheEnabled()) {
@@ -2864,7 +2841,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         final int end = getHeight() - listPadding.bottom;
         final int spaceBelow = lastBottom - end;
 
-        final int height = getHeight() - getPaddingBottom() - getPaddingTop();
+        final int height = getHeight() - mPaddingBottom - mPaddingTop;
         if (deltaY < 0) {
             deltaY = Math.max(-(height - 1), deltaY);
         } else {
@@ -3098,7 +3075,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         int selectedTop = 0;
         int selectedPos;
         int childrenTop = mListPadding.top;
-        int childrenBottom = getBottom() - getTop() - mListPadding.bottom;
+        int childrenBottom = mBottom - mTop - mListPadding.bottom;
         final int firstPosition = mFirstPosition;
         final int toPosition = mResurrectToPosition;
         boolean down = true;
@@ -3547,14 +3524,13 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
      * @param animateEntrance true if the window should appear with an animation
      */
     private void createTextFilter(boolean animateEntrance) {
-    	/*!
         if (mPopup == null) {
             Context c = getContext();
             PopupWindow p = new PopupWindow(c);
             LayoutInflater layoutInflater = (LayoutInflater)
                     c.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             mTextFilter = (EditText) layoutInflater.inflate(
-                    android.R.layout.typing_filter, null);
+                    com.android.internal.R.layout.typing_filter, null);
             // For some reason setting this as the "real" input type changes
             // the text view in some way that it doesn't work, and I don't
             // want to figure out why this is.
@@ -3574,11 +3550,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             mGlobalLayoutListenerAddedFilter = true;
         }
         if (animateEntrance) {
-            mPopup.setAnimationStyle(android.R.style.Animation_TypingFilter);
+            mPopup.setAnimationStyle(com.android.internal.R.style.Animation_TypingFilter);
         } else {
-            mPopup.setAnimationStyle(android.R.style.Animation_TypingFilterRestore);
+            mPopup.setAnimationStyle(com.android.internal.R.style.Animation_TypingFilterRestore);
         }
-        !*/
     }
 
     /**
@@ -3675,12 +3650,12 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
     @Override
     public LayoutParams generateLayoutParams(AttributeSet attrs) {
-        return new CroquisAbsListView.LayoutParams(getContext(), attrs);
+        return new AbsListView.LayoutParams(getContext(), attrs);
     }
 
     @Override
     protected boolean checkLayoutParams(ViewGroup.LayoutParams p) {
-        return p instanceof CroquisAbsListView.LayoutParams;
+        return p instanceof AbsListView.LayoutParams;
     }
 
     /**
@@ -3753,7 +3728,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         // Reclaim views on screen
         for (int i = 0; i < childCount; i++) {
             View child = getChildAt(i);
-            CroquisAbsListView.LayoutParams lp = (CroquisAbsListView.LayoutParams) child.getLayoutParams();
+            AbsListView.LayoutParams lp = (AbsListView.LayoutParams) child.getLayoutParams();
             // Don't reclaim header or footer views, or views that should be ignored
             if (lp != null && mRecycler.shouldRecycleViewType(lp.viewType)) {
                 views.add(child);
@@ -3767,10 +3742,9 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
         removeAllViewsInLayout();
     }
 
-    /*!
-    / **
+    /**
      * @hide
-     * /
+     */
     @Override
     protected boolean onConsistencyCheck(int consistency) {
         boolean result = super.onConsistencyCheck(consistency);
@@ -3824,7 +3798,6 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
 
         return result;
     }
-    !*/
 
     /**
      * Sets the recycler listener to be notified whenever a View is set aside in
@@ -3952,8 +3925,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                 throw new IllegalArgumentException("Can't have a viewTypeCount < 1");
             }
             //noinspection unchecked
-            @SuppressWarnings("unchecked")
-			ArrayList<View>[] scrapViews = new ArrayList[viewTypeCount];
+            ArrayList<View>[] scrapViews = new ArrayList[viewTypeCount];
             for (int i = 0; i < viewTypeCount; i++) {
                 scrapViews[i] = new ArrayList<View>();
             }
@@ -4023,7 +3995,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             final View[] activeViews = mActiveViews;
             for (int i = 0; i < childCount; i++) {
                 View child = getChildAt(i);
-                CroquisAbsListView.LayoutParams lp = (CroquisAbsListView.LayoutParams) child.getLayoutParams();
+                AbsListView.LayoutParams lp = (AbsListView.LayoutParams) child.getLayoutParams();
                 // Don't put header or footer views into the scrap heap
                 if (lp != null && lp.viewType != ITEM_VIEW_TYPE_HEADER_OR_FOOTER) {
                     // Note:  We do place AdapterView.ITEM_VIEW_TYPE_IGNORE in active views.
@@ -4083,7 +4055,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
          * @param scrap The view to add
          */
         void addScrapView(View scrap) {
-            CroquisAbsListView.LayoutParams lp = (CroquisAbsListView.LayoutParams) scrap.getLayoutParams();
+            AbsListView.LayoutParams lp = (AbsListView.LayoutParams) scrap.getLayoutParams();
             if (lp == null) {
                 return;
             }
@@ -4099,10 +4071,10 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             }
 
             if (mViewTypeCount == 1) {
-                //!scrap.dispatchStartTemporaryDetach();
+                scrap.dispatchStartTemporaryDetach();
                 mCurrentScrap.add(scrap);
             } else {
-                //!scrap.dispatchStartTemporaryDetach();
+                scrap.dispatchStartTemporaryDetach();
                 mScrapViews[viewType].add(scrap);
             }
 
@@ -4124,7 +4096,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
             for (int i = count - 1; i >= 0; i--) {
                 final View victim = activeViews[i];
                 if (victim != null) {
-                    int whichScrap = ((CroquisAbsListView.LayoutParams) victim.getLayoutParams()).viewType;
+                    int whichScrap = ((AbsListView.LayoutParams) victim.getLayoutParams()).viewType;
 
                     activeViews[i] = null;
 
@@ -4139,7 +4111,7 @@ public abstract class CroquisAbsListView extends CroquisAdapterView<ListAdapter>
                     if (multipleScraps) {
                         scrapViews = mScrapViews[whichScrap];
                     }
-                    //!victim.dispatchStartTemporaryDetach();
+                    victim.dispatchStartTemporaryDetach();
                     scrapViews.add(victim);
 
                     if (hasListener) {

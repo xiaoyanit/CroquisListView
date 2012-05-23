@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.croquis.list;
+package android.widget;
 
 import android.content.Context;
 import android.database.DataSetObserver;
@@ -27,8 +27,9 @@ import android.view.ContextMenu;
 import android.view.SoundEffectConstants;
 import android.view.View;
 import android.view.ViewDebug;
+import android.view.ViewGroup;
+import android.view.ContextMenu.ContextMenuInfo;
 import android.view.accessibility.AccessibilityEvent;
-import android.widget.Adapter;
 
 
 /**
@@ -38,7 +39,7 @@ import android.widget.Adapter;
  * See {@link ListView}, {@link GridView}, {@link Spinner} and
  *      {@link Gallery} for commonly used subclasses of AdapterView.
  */
-public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeViewGroup {
+public abstract class AdapterView<T extends Adapter> extends ViewGroup {
 
     /**
      * The item view type returned by {@link Adapter#getItemViewType(int)} when
@@ -215,15 +216,15 @@ public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeV
      */
     boolean mBlockLayoutRequests = false;
 
-    public CroquisAdapterView(Context context) {
+    public AdapterView(Context context) {
         super(context);
     }
 
-    public CroquisAdapterView(Context context, AttributeSet attrs) {
+    public AdapterView(Context context, AttributeSet attrs) {
         super(context, attrs);
     }
 
-    public CroquisAdapterView(Context context, AttributeSet attrs, int defStyle) {
+    public AdapterView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
     }
 
@@ -247,7 +248,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeV
          * @param position The position of the view in the adapter.
          * @param id The row id of the item that was clicked.
          */
-        void onItemClick(CroquisAdapterView<?> parent, View view, int position, long id);
+        void onItemClick(AdapterView<?> parent, View view, int position, long id);
     }
 
     /**
@@ -306,7 +307,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeV
          *
          * @return true if the callback consumed the long click, false otherwise
          */
-        boolean onItemLongClick(CroquisAdapterView<?> parent, View view, int position, long id);
+        boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id);
     }
 
 
@@ -348,7 +349,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeV
          * @param position The position of the view in the adapter
          * @param id The row id of the item that is selected
          */
-        void onItemSelected(CroquisAdapterView<?> parent, View view, int position, long id);
+        void onItemSelected(AdapterView<?> parent, View view, int position, long id);
 
         /**
          * Callback method to be invoked when the selection disappears from this
@@ -357,7 +358,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeV
          *
          * @param parent The AdapterView that now contains no selected item.
          */
-        void onNothingSelected(CroquisAdapterView<?> parent);
+        void onNothingSelected(AdapterView<?> parent);
     }
 
 
@@ -720,7 +721,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeV
             // Force one here to make sure that the state of the list matches
             // the state of the adapter.
             if (mDataChanged) {           
-                this.onLayout(false, getLeft(), getTop(), getRight(), getBottom()); 
+                this.onLayout(false, mLeft, mTop, mRight, mBottom); 
             }
         } else {
             if (mEmptyView != null) mEmptyView.setVisibility(View.GONE);
@@ -778,9 +779,9 @@ public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeV
 
             // Detect the case where a cursor that was previously invalidated has
             // been repopulated with new data.
-            if (CroquisAdapterView.this.getAdapter().hasStableIds() && mInstanceState != null
+            if (AdapterView.this.getAdapter().hasStableIds() && mInstanceState != null
                     && mOldItemCount == 0 && mItemCount > 0) {
-                CroquisAdapterView.this.onRestoreInstanceState(mInstanceState);
+                AdapterView.this.onRestoreInstanceState(mInstanceState);
                 mInstanceState = null;
             } else {
                 rememberSyncState();
@@ -793,10 +794,10 @@ public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeV
         public void onInvalidated() {
             mDataChanged = true;
 
-            if (CroquisAdapterView.this.getAdapter().hasStableIds()) {
+            if (AdapterView.this.getAdapter().hasStableIds()) {
                 // Remember the current state for the case where our hosting activity is being
                 // stopped and later restarted
-                mInstanceState = CroquisAdapterView.this.onSaveInstanceState();
+                mInstanceState = AdapterView.this.onSaveInstanceState();
             }
 
             // Data is invalid so we should reset our state
@@ -848,7 +849,7 @@ public abstract class CroquisAdapterView<T extends Adapter> extends CroquisFakeV
         }
 
         // we fire selection events here not in View
-        if (mSelectedPosition != INVALID_POSITION && isShown() && !isInTouchMode()) {
+        if (mSelectedPosition != ListView.INVALID_POSITION && isShown() && !isInTouchMode()) {
             sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_SELECTED);
         }
     }
